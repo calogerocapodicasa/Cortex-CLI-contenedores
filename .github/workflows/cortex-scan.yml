@@ -1,4 +1,4 @@
-name: Cortex Security Pipeline - Image Scan
+name: Cortex Security Pipeline - Full DevSecOps
 
 on:
   push:
@@ -6,8 +6,8 @@ on:
       - main
 
 jobs:
-  build-and-scan:
-    name: Construir y Escanear Contenedor
+  full-security-scan:
+    name: Análisis de Código e Imagen
     runs-on: ubuntu-latest
     steps:
       - name: Descargar el código
@@ -29,19 +29,32 @@ jobs:
           curl -s -o cortexcli "$crtx_url"
           chmod +x cortexcli
           sudo mv cortexcli /usr/local/bin/cortexcli
-          cortexcli --version
 
-      - name: Construir la imagen Docker
-        run: |
-          # Construimos la imagen y la etiquetamos con el ID único del commit de GitHub
-          docker build -t mi-app-debian:${{ github.sha }} .
-          echo "Imagen local construida con éxito en el demonio Docker del agente."
-
-      - name: Cortex Scan - Escaneo de la Imagen Directa
+      - name: 1. Escaneo de Código (IaC / Dockerfile)
         run: |
           set -e
-          
-          # Vinculamos el escaneo a XSIAM usando los identificadores de CI
+          echo "Iniciando análisis estático del código..."
+          cortexcli \
+            --api-base-url "${{ secrets.CORTEX_API_URL }}" \
+            --api-key "${{ secrets.CORTEX_API_KEY }}" \
+            --api-key-id "${{ secrets.CORTEX_API_KEY_ID }}" \
+            code scan \
+            --directory "${{ github.workspace }}" \
+            --repo-id "${{ github.repository }}" \
+            --branch "${{ github.ref_name }}" \
+            --source "CORTEX_CLI" \
+            --create-repo-if-missing
+
+      - name: 2. Construir la imagen Docker
+        run: |
+          echo "El código es seguro. Procediendo a construir la imagen..."
+          docker build -t mi-app-debian:${{ github.sha }} .
+          echo "Imagen local construida con éxito."
+
+      - name: 3. Escaneo de Imagen (Vulnerabilidades / CVEs)
+        run: |
+          set -e
+          echo "Iniciando análisis de composición en la imagen construida..."
           cortexcli \
             --api-base-url "${{ secrets.CORTEX_API_URL }}" \
             --api-key "${{ secrets.CORTEX_API_KEY }}" \
