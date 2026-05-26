@@ -36,7 +36,6 @@ jobs:
       - name: Cortex Scan - IaC y Código
         run: |
           set -e
-          echo "Buscando secretos expuestos y malas prácticas en el Dockerfile..."
           cortexcli \
             --api-base-url "${{ secrets.CORTEX_API_URL }}" \
             --api-key "${{ secrets.CORTEX_API_KEY }}" \
@@ -46,6 +45,7 @@ jobs:
             --repo-id "${{ github.repository }}" \
             --branch "${{ github.ref_name }}" \
             --source "CORTEX_CLI" \
+            --framework "dockerfile,secrets" \
             --create-repo-if-missing
 
   # ---------------------------------------------------------
