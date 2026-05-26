@@ -40,15 +40,14 @@ jobs:
           docker save -o mi-app-debian.tar mi-app-debian:${{ github.sha }}
           echo "Imagen exportada con éxito a mi-app-debian.tar"
 
-      - name: Cortex Scan - Escaneo de la Imagen (Archive)
+      - name: Cortex Scan - Modo Depuración (Help)
         run: |
-          set -e
+          echo "Consultando el manual del subcomando 'image scan'..."
           
-          # Ejecutamos el escaneo pasándole el archivo .tar directamente
-          # (Se eliminó --source ya que el subcomando 'image scan' no lo acepta)
+          # Quitamos el set -e temporalmente por si el CLI arroja el error de otra forma
+          
           cortexcli \
             --api-base-url "${{ secrets.CORTEX_API_URL }}" \
             --api-key "${{ secrets.CORTEX_API_KEY }}" \
             --api-key-id "${{ secrets.CORTEX_API_KEY_ID }}" \
-            image scan \
-            mi-app-debian.tar
+            image scan --help
