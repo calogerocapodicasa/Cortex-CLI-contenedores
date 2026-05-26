@@ -31,23 +31,19 @@ jobs:
           sudo mv cortexcli /usr/local/bin/cortexcli
           cortexcli --version
 
-      - name: Construir y Exportar la imagen Docker
+      - name: Construir la imagen Docker
         run: |
-          # 1. Construimos la imagen y la etiquetamos con el ID del commit
+          # Construimos la imagen y la etiquetamos con el ID único del commit de GitHub
           docker build -t mi-app-debian:${{ github.sha }} .
-          
-          # 2. Exportamos la imagen a un archivo físico (.tar) para el escáner
-          docker save -o mi-app-debian.tar mi-app-debian:${{ github.sha }}
-          echo "Imagen exportada con éxito a mi-app-debian.tar"
+          echo "Imagen local construida con éxito en el demonio Docker del agente."
 
-      - name: Cortex Scan - Modo Depuración (Help)
+      - name: Cortex Scan - Escaneo de la Imagen Directa
         run: |
-          echo "Consultando el manual del subcomando 'image scan'..."
+          set -e
           
-          # Quitamos el set -e temporalmente por si el CLI arroja el error de otra forma
-          
+          # Se ejecuta el escaneo pasando el tag de la imagen directamente como último parámetro
           cortexcli \
             --api-base-url "${{ secrets.CORTEX_API_URL }}" \
             --api-key "${{ secrets.CORTEX_API_KEY }}" \
             --api-key-id "${{ secrets.CORTEX_API_KEY_ID }}" \
-            image scan --help
+            image scan mi-app-debian:${{ github.sha }}
