@@ -46,7 +46,7 @@ jobs:
             --directory "${{ github.workspace }}" \
             --repo-id "${{ github.repository }}" \
             --branch "${{ github.ref_name }}" \
-            --source "GITHUB" \
+            --source "GITHUB_ACTIONS" \
             --create-repo-if-missing
 
   # ---------------------------------------------------------
