@@ -37,12 +37,17 @@ jobs:
           docker build -t mi-app-debian:${{ github.sha }} .
           echo "Imagen local construida con éxito en el demonio Docker del agente."
 
-      - name: Cortex Scan - Buscar la bandera correcta
+      - name: Cortex Scan - Escaneo de la Imagen Directa
         run: |
-          echo "Buscando cómo conectar el escaneo de imagen a la consola..."
+          set -e
           
+          # Vinculamos el escaneo a XSIAM usando los identificadores de CI
           cortexcli \
             --api-base-url "${{ secrets.CORTEX_API_URL }}" \
             --api-key "${{ secrets.CORTEX_API_KEY }}" \
             --api-key-id "${{ secrets.CORTEX_API_KEY_ID }}" \
-            image scan --help
+            image scan \
+            --ci-pipeline-id "${{ github.repository }}" \
+            --ci-build-id "${{ github.run_id }}" \
+            --name "mi-app-debian" \
+            mi-app-debian:${{ github.sha }}
