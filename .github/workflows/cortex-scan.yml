@@ -44,11 +44,11 @@ jobs:
         run: |
           set -e
           
-          # 3. Ejecutamos el escaneo pasándole el archivo .tar directamente
+          # Ejecutamos el escaneo pasándole el archivo .tar directamente
+          # (Se eliminó --source ya que el subcomando 'image scan' no lo acepta)
           cortexcli \
             --api-base-url "${{ secrets.CORTEX_API_URL }}" \
             --api-key "${{ secrets.CORTEX_API_KEY }}" \
             --api-key-id "${{ secrets.CORTEX_API_KEY_ID }}" \
             image scan \
-            --source "CORTEX_CLI" \
             mi-app-debian.tar
