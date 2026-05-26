@@ -1,0 +1,66 @@
+name: Cortex Security Pipeline
+
+# Se ejecuta automáticamente cada vez que haya un cambio en la rama main
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  # ---------------------------------------------------------
+  # ETAPA 1: SEGURIDAD (Escaneo de código e IaC)
+  # ---------------------------------------------------------
+  security-scan:
+    name: Escaneo de Seguridad
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Descargar e Instalar cortexcli
+        run: |
+          set -e
+          crtx_resp=$(curl -s "${{ secrets.CORTEX_API_URL }}/public_api/v1/unified-cli/releases/download-link?os=linux&architecture=amd64" \
+            -H "x-xdr-auth-id: ${{ secrets.CORTEX_API_KEY_ID }}" \
+            -H "Authorization: ${{ secrets.CORTEX_API_KEY }}")
+          
+          crtx_url=$(echo "$crtx_resp" | jq -r ".signed_url")
+          if [ -z "$crtx_url" ] || [ "$crtx_url" = "null" ]; then
+            # Comando de log de error nativo de GitHub Actions
+            echo "::error::No se pudo obtener el signed_url."
+            exit 1
+          fi
+          
+          curl -s -o cortexcli "$crtx_url"
+          chmod +x cortexcli
+          sudo mv cortexcli /usr/local/bin/cortexcli
+
+      - name: Cortex Scan - IaC y Código
+        run: |
+          set -e
+          cortexcli \
+            --api-base-url "${{ secrets.CORTEX_API_URL }}" \
+            --api-key "${{ secrets.CORTEX_API_KEY }}" \
+            --api-key-id "${{ secrets.CORTEX_API_KEY_ID }}" \
+            code scan \
+            --directory "${{ github.workspace }}" \
+            --repo-id "${{ github.repository }}" \
+            --branch "${{ github.ref_name }}" \
+            --source "CORTEX_CLI" \
+            --create-repo-if-missing
+
+  # ---------------------------------------------------------
+  # ETAPA 2: CONSTRUCCIÓN (Solo si Seguridad pasa)
+  # ---------------------------------------------------------
+  build-image:
+    name: Construir Contenedor
+    needs: security-scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Construir imagen Docker
+        run: |
+          docker build -t mi-app-debian:${{ github.sha }} .
+          echo "¡Imagen construida con éxito en GitHub Actions!"
