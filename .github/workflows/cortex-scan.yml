@@ -37,20 +37,13 @@ jobs:
           docker build -t mi-app-debian:${{ github.sha }} .
           echo "Imagen local construida con éxito."
 
-      - name: 2. Cortex Scan - Escaneo de la Imagen
+      - name: 2. Cortex Scan - Leer Manual de Imagen
         run: |
-          # Imprimimos el manual de ayuda para ver las banderas exactas que acepta tu versión
-          cortexcli image scan --help
+          echo "Consultando el manual exacto para la versión actual de cortexcli..."
           
-          echo "-----------------------------------"
-          echo "Iniciando escaneo (Intento posicional)..."
-          
-          set -e
-          # Intento 1: Pasamos el nombre de la imagen directamente al final, sin la palabra --image
+          # Pasamos las credenciales para que nos deje ver el menú de ayuda del comando image
           cortexcli \
             --api-base-url "${{ secrets.CORTEX_API_URL }}" \
             --api-key "${{ secrets.CORTEX_API_KEY }}" \
             --api-key-id "${{ secrets.CORTEX_API_KEY_ID }}" \
-            image scan \
-            --source "CORTEX_CLI" \
-            "mi-app-debian:${{ github.sha }}"
+            image --help
