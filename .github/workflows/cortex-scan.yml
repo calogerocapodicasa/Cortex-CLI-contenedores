@@ -46,7 +46,7 @@ jobs:
             --directory "${{ github.workspace }}" \
             --repo-id "${{ github.repository }}" \
             --branch "${{ github.ref_name }}" \
-            --source "GITHUB_ACTIONS" \
+            --source "CORTEX_CLI" \
             --create-repo-if-missing
 
   # ---------------------------------------------------------
