@@ -6,8 +6,11 @@ on:
       - main
 
 jobs:
-  full-security-scan:
-    name: Análisis de Código e Imagen
+  # ---------------------------------------------------------
+  # STAGE 1: SEGURIDAD ESTÁTICA (Escaneo de código e IaC)
+  # ---------------------------------------------------------
+  security-scan:
+    name: 1. Escaneo de IaC y Código
     runs-on: ubuntu-latest
     steps:
       - name: Descargar el código
@@ -30,10 +33,10 @@ jobs:
           chmod +x cortexcli
           sudo mv cortexcli /usr/local/bin/cortexcli
 
-      - name: 1. Escaneo de Código (IaC / Dockerfile)
+      - name: Cortex Scan - IaC y Código
         run: |
           set -e
-          echo "Iniciando análisis estático del código..."
+          echo "Buscando secretos expuestos y malas prácticas en el Dockerfile..."
           cortexcli \
             --api-base-url "${{ secrets.CORTEX_API_URL }}" \
             --api-key "${{ secrets.CORTEX_API_KEY }}" \
@@ -45,16 +48,43 @@ jobs:
             --source "CORTEX_CLI" \
             --create-repo-if-missing
 
-      - name: 2. Construir la imagen Docker
-        run: |
-          echo "El código es seguro. Procediendo a construir la imagen..."
-          docker build -t mi-app-debian:${{ github.sha }} .
-          echo "Imagen local construida con éxito."
+  # ---------------------------------------------------------
+  # STAGE 2: CONSTRUCCIÓN Y ESCANEO DINÁMICO (Imagen/CVEs)
+  # ---------------------------------------------------------
+  build-and-image-scan:
+    name: 2. Construcción y Escaneo de Imagen
+    needs: security-scan # Esto asegura que no se construya nada si el código es inseguro
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
 
-      - name: 3. Escaneo de Imagen (Vulnerabilidades / CVEs)
+      - name: Descargar e Instalar cortexcli (Runner 2)
         run: |
           set -e
-          echo "Iniciando análisis de composición en la imagen construida..."
+          crtx_resp=$(curl -s "${{ secrets.CORTEX_API_URL }}/public_api/v1/unified-cli/releases/download-link?os=linux&architecture=amd64" \
+            -H "x-xdr-auth-id: ${{ secrets.CORTEX_API_KEY_ID }}" \
+            -H "Authorization: ${{ secrets.CORTEX_API_KEY }}")
+          
+          crtx_url=$(echo "$crtx_resp" | jq -r ".signed_url")
+          if [ -z "$crtx_url" ] || [ "$crtx_url" = "null" ]; then
+            echo "::error::No se pudo obtener el signed_url."
+            exit 1
+          fi
+          
+          curl -s -o cortexcli "$crtx_url"
+          chmod +x cortexcli
+          sudo mv cortexcli /usr/local/bin/cortexcli
+
+      - name: Construir imagen Docker
+        run: |
+          docker build -t mi-app-debian:${{ github.sha }} .
+          echo "¡Imagen construida con éxito en GitHub Actions!"
+
+      - name: Cortex Scan - Escaneo de la Imagen (CVEs)
+        run: |
+          set -e
+          echo "Buscando vulnerabilidades de software (CVEs) en la imagen generada..."
           cortexcli \
             --api-base-url "${{ secrets.CORTEX_API_URL }}" \
             --api-key "${{ secrets.CORTEX_API_KEY }}" \
