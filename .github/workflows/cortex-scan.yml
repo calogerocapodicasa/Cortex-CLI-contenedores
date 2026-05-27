@@ -1,89 +1,13 @@
-name: Cortex Security Pipeline
-
-on:
-  push:
-    branches:
-      - main
-
-jobs:
-  # ---------------------------------------------------------
-  # STAGE 1: SEGURIDAD ESTÁTICA (Escaneo de código e IaC)
-  # ---------------------------------------------------------
-  security-scan:
-    name: 1. Escaneo de IaC y Código
-    runs-on: self-hosted # Usa tu agente local
-    steps:
-      - name: Descargar el código
-        uses: actions/checkout@v4
-
-      - name: Descargar e Instalar cortexcli
+- name: Construir imagen Docker
         run: |
-          set -e
-          crtx_resp=$(curl -s "${{ secrets.CORTEX_API_URL }}/public_api/v1/unified-cli/releases/download-link?os=linux&architecture=amd64" \
-            -H "x-xdr-auth-id: ${{ secrets.CORTEX_API_KEY_ID }}" \
-            -H "Authorization: ${{ secrets.CORTEX_API_KEY }}")
-          
-          crtx_url=$(echo "$crtx_resp" | jq -r ".signed_url")
-          if [ -z "$crtx_url" ] || [ "$crtx_url" = "null" ]; then
-            echo "::error::No se pudo obtener el signed_url."
-            exit 1
-          fi
-          
-          curl -s -o cortexcli "$crtx_url"
-          chmod +x cortexcli
-          sudo mv cortexcli /usr/local/bin/cortexcli
-
-      - name: Cortex Scan - IaC y Código
-        run: |
-          set -e
-          cortexcli \
-            --api-base-url "${{ secrets.CORTEX_API_URL }}" \
-            --api-key "${{ secrets.CORTEX_API_KEY }}" \
-            --api-key-id "${{ secrets.CORTEX_API_KEY_ID }}" \
-            code scan \
-            --directory "${{ github.workspace }}" \
-            --repo-id "${{ github.repository }}" \
-            --branch "${{ github.ref_name }}" \
-            --source "CORTEX_CLI" \
-            --create-repo-if-missing
-
-  # ---------------------------------------------------------
-  # STAGE 2: CONSTRUCCIÓN, ESCANEO DINÁMICO Y DESPLIEGUE
-  # ---------------------------------------------------------
-  build-and-image-scan:
-    name: 2. Construcción, Escaneo y Despliegue
-    needs: security-scan
-    runs-on: self-hosted # Usa tu agente local
-    steps:
-      - name: Descargar el código
-        uses: actions/checkout@v4
-
-      - name: Descargar e Instalar cortexcli (Runner 2)
-        run: |
-          set -e
-          crtx_resp=$(curl -s "${{ secrets.CORTEX_API_URL }}/public_api/v1/unified-cli/releases/download-link?os=linux&architecture=amd64" \
-            -H "x-xdr-auth-id: ${{ secrets.CORTEX_API_KEY_ID }}" \
-            -H "Authorization: ${{ secrets.CORTEX_API_KEY }}")
-          
-          crtx_url=$(echo "$crtx_resp" | jq -r ".signed_url")
-          if [ -z "$crtx_url" ] || [ "$crtx_url" = "null" ]; then
-            echo "::error::No se pudo obtener el signed_url."
-            exit 1
-          fi
-          
-          curl -s -o cortexcli "$crtx_url"
-          chmod +x cortexcli
-          sudo mv cortexcli /usr/local/bin/cortexcli
-
-      - name: Construir imagen Docker
-        run: |
-          docker build -t Calo-CortexCLI-prueba:latest .
-          echo "¡Imagen Calo-CortexCLI-prueba construida localmente!"
+          # El nombre debe ir obligatoriamente en minúsculas para Docker
+          docker build -t calo-cortexcli-prueba:latest .
+          echo "¡Imagen calo-cortexcli-prueba construida localmente!"
 
       - name: Cortex Scan - Escaneo de la Imagen (CVEs)
         run: |
           set -e
-          echo "Buscando vulnerabilidades en la imagen Calo-CortexCLI-prueba..."
+          echo "Buscando vulnerabilidades en la imagen calo-cortexcli-prueba..."
           cortexcli \
             --api-base-url "${{ secrets.CORTEX_API_URL }}" \
             --api-key "${{ secrets.CORTEX_API_KEY }}" \
@@ -92,7 +16,7 @@ jobs:
             --ci-pipeline-id "${{ github.repository }}" \
             --ci-build-id "${{ github.run_id }}" \
             --name "Calo-CortexCLI-prueba" \
-            Calo-CortexCLI-prueba:latest
+            calo-cortexcli-prueba:latest
 
       - name: 3. Despliegue Automático en Docker Desktop
         run: |
@@ -100,7 +24,7 @@ jobs:
           docker rm -f Calo-CortexCLI-prueba || true
           
           echo "Lanzando el nuevo contenedor en Docker Desktop..."
-          # Mapeamos un puerto (ejemplo: 8080) para que puedas acceder si el contenedor expone servicio web
-          docker run -d -p 8080:80 --name Calo-CortexCLI-prueba Calo-CortexCLI-prueba:latest
+          # El flag --name sí acepta mayúsculas para el contenedor final en Docker Desktop
+          docker run -d -p 8080:80 --name Calo-CortexCLI-prueba calo-cortexcli-prueba:latest
           
           echo "¡Despliegue finalizado! Revisa tu aplicación Docker Desktop."
