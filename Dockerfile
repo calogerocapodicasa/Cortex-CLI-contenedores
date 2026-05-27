@@ -1,22 +1,23 @@
-# Cambiamos la imagen base a la solicitada
+
 FROM debian:testing-backports
 
-# MALA PRÁCTICA 1: Exponer un puerto de administración inseguro (SSH)
-EXPOSE 22
+# MALA PRÁCTICA 1: Variables de entorno con secretos quemados en el código
+ENV AWS_SECRET_KEY="AKIAIOSFODNN7EXAMPLE"
+ENV DB_PASSWORD="SuperSecretPassword123!"
 
-# MALA PRÁCTICA 2: Quemar credenciales en texto plano
-ENV DB_PASSWORD="PasswordInseguro123!"
-
-# MALA PRÁCTICA 3: Forzar el uso del superusuario root
-USER root
-
-# Actualiza e instala paquetes básicos (con salvaguarda para evitar el error 100)
-RUN (apt-get update || true) && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y \
     python3 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY . .
+# MALA PRÁCTICA 2: Usar ADD en lugar de COPY para archivos locales
+ADD . /app
 
-CMD ["python3", "-c", "print('¡Contenedor Debian Testing listo!')"]
+# MALA PRÁCTICA 3: Exponer el puerto SSH (22), lo cual es crítico en contenedores
+EXPOSE 22
+
+# MALA PRÁCTICA 4: Ejecutar explícitamente como usuario root
+USER root
+
+CMD ["python3", "-c", "print('¡Contenedor inseguro en ejecución!')"]
