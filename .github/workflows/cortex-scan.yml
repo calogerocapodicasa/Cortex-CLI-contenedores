@@ -1,4 +1,4 @@
-name: Cortex Security Pipeline - Full DevSecOps
+name: Cortex Security Pipeline - DVWA Local Lab
 
 on:
   push:
@@ -48,11 +48,11 @@ jobs:
             --create-repo-if-missing
 
   # ---------------------------------------------------------
-  # STAGE 2: CONSTRUCCIÓN Y ESCANEO DINÁMICO (Imagen/CVEs)
+  # STAGE 2: CONSTRUCCIÓN LOCAL Y ESCANEO DINÁMICO (CVEs)
   # ---------------------------------------------------------
   build-and-image-scan:
     name: 2. Construcción y Escaneo de Imagen
-    needs: security-scan # Esto asegura que no se construya nada si el código es inseguro
+    needs: security-scan
     runs-on: ubuntu-latest
     steps:
       - name: Descargar el código
@@ -75,10 +75,11 @@ jobs:
           chmod +x cortexcli
           sudo mv cortexcli /usr/local/bin/cortexcli
 
-      - name: Construir imagen Docker
+      - name: Construir imagen local (DVWA Modificado)
         run: |
-          docker build -t mi-app-debian:${{ github.sha }} .
-          echo "¡Imagen construida con éxito en GitHub Actions!"
+          echo "Construyendo la imagen de laboratorio usando el Dockerfile..."
+          docker build -t mi-dvwa-lab:${{ github.sha }} .
+          echo "¡Imagen construida con éxito!"
 
       - name: Cortex Scan - Escaneo de la Imagen (CVEs)
         run: |
@@ -91,5 +92,5 @@ jobs:
             image scan \
             --ci-pipeline-id "${{ github.repository }}" \
             --ci-build-id "${{ github.run_id }}" \
-            --name "mi-app-debian" \
-            mi-app-debian:${{ github.sha }}
+            --name "dvwa-custom-lab" \
+            mi-dvwa-lab:${{ github.sha }}
