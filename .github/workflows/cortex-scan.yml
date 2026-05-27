@@ -1,4 +1,4 @@
-name: Cortex Security Pipeline - Dynamic DevSecOps
+name: Cortex Security Pipeline - Full DevSecOps
 
 on:
   push:
@@ -11,7 +11,7 @@ jobs:
   # ---------------------------------------------------------
   security-scan:
     name: 1. Escaneo de IaC y Código
-    runs-on: self-hosted # Ejecuta en el runner de tu Escritorio
+    runs-on: ubuntu-latest
     steps:
       - name: Descargar el código
         uses: actions/checkout@v4
@@ -45,16 +45,15 @@ jobs:
             --repo-id "${{ github.repository }}" \
             --branch "${{ github.ref_name }}" \
             --source "CORTEX_CLI" \
-            --upload-mode no-upload \
             --create-repo-if-missing
 
   # ---------------------------------------------------------
-  # STAGE 2: CONSTRUCCIÓN, ESCANEO DINÁMICO Y DESPLIEGUE
+  # STAGE 2: CONSTRUCCIÓN Y ESCANEO DINÁMICO (Imagen/CVEs)
   # ---------------------------------------------------------
   build-and-image-scan:
-    name: 2. Construcción, Escaneo y Despliegue
-    needs: security-scan
-    runs-on: self-hosted # Ejecuta en el runner de tu Escritorio
+    name: 2. Construcción y Escaneo de Imagen
+    needs: security-scan # Esto asegura que no se construya nada si el código es inseguro
+    runs-on: ubuntu-latest
     steps:
       - name: Descargar el código
         uses: actions/checkout@v4
@@ -78,14 +77,13 @@ jobs:
 
       - name: Construir imagen Docker
         run: |
-          # Nombre completamente en minúsculas obligatorio para Docker build
-          docker build -t calo-cortexcli-prueba:latest .
-          echo "¡Imagen calo-cortexcli-prueba construida localmente con éxito!"
+          docker build -t calo-cortexcli:${{ github.sha }} .
+          echo "¡Imagen construida con éxito en GitHub Actions!"
 
       - name: Cortex Scan - Escaneo de la Imagen (CVEs)
         run: |
           set -e
-          echo "Buscando vulnerabilidades en la imagen calo-cortexcli-prueba..."
+          echo "Buscando vulnerabilidades de software (CVEs) en la imagen generada..."
           cortexcli \
             --api-base-url "${{ secrets.CORTEX_API_URL }}" \
             --api-key "${{ secrets.CORTEX_API_KEY }}" \
@@ -93,16 +91,5 @@ jobs:
             image scan \
             --ci-pipeline-id "${{ github.repository }}" \
             --ci-build-id "${{ github.run_id }}" \
-            --name "Calo-CortexCLI-prueba" \
-            calo-cortexcli-prueba:latest
-
-      - name: 3. Despliegue Automático en Docker Desktop
-        run: |
-          echo "Buscando y removiendo versiones antiguas del contenedor si existen..."
-          docker rm -f Calo-CortexCLI-prueba || true
-          
-          echo "Lanzando el nuevo contenedor en Docker Desktop..."
-          # El nombre del contenedor vivo final sí puede llevar mayúsculas
-          docker run -d -p 8080:80 --name Calo-CortexCLI-prueba calo-cortexcli-prueba:latest
-          
-          echo "¡Despliegue finalizado! Revisa tu aplicación Docker Desktop."
+            --name "calo-cortexcli" \
+            calo-cortexcli:${{ github.sha }}
