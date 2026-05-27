@@ -1,4 +1,4 @@
-name: Cortex Security Pipeline - DVWA Local Lab
+name: Cortex Security Pipeline
 
 on:
   push:
@@ -11,7 +11,7 @@ jobs:
   # ---------------------------------------------------------
   security-scan:
     name: 1. Escaneo de IaC y Código
-    runs-on: ubuntu-latest
+    runs-on: self-hosted # Usa tu agente local
     steps:
       - name: Descargar el código
         uses: actions/checkout@v4
@@ -48,12 +48,12 @@ jobs:
             --create-repo-if-missing
 
   # ---------------------------------------------------------
-  # STAGE 2: CONSTRUCCIÓN LOCAL Y ESCANEO DINÁMICO (CVEs)
+  # STAGE 2: CONSTRUCCIÓN, ESCANEO DINÁMICO Y DESPLIEGUE
   # ---------------------------------------------------------
   build-and-image-scan:
-    name: 2. Construcción y Escaneo de Imagen
+    name: 2. Construcción, Escaneo y Despliegue
     needs: security-scan
-    runs-on: ubuntu-latest
+    runs-on: self-hosted # Usa tu agente local
     steps:
       - name: Descargar el código
         uses: actions/checkout@v4
@@ -75,16 +75,15 @@ jobs:
           chmod +x cortexcli
           sudo mv cortexcli /usr/local/bin/cortexcli
 
-      - name: Construir imagen local (DVWA Modificado)
+      - name: Construir imagen Docker
         run: |
-          echo "Construyendo la imagen de laboratorio usando el Dockerfile..."
-          docker build -t mi-dvwa-lab:${{ github.sha }} .
-          echo "¡Imagen construida con éxito!"
+          docker build -t Calo-CortexCLI-prueba:latest .
+          echo "¡Imagen Calo-CortexCLI-prueba construida localmente!"
 
       - name: Cortex Scan - Escaneo de la Imagen (CVEs)
         run: |
           set -e
-          echo "Buscando vulnerabilidades de software (CVEs) en la imagen generada..."
+          echo "Buscando vulnerabilidades en la imagen Calo-CortexCLI-prueba..."
           cortexcli \
             --api-base-url "${{ secrets.CORTEX_API_URL }}" \
             --api-key "${{ secrets.CORTEX_API_KEY }}" \
@@ -92,5 +91,16 @@ jobs:
             image scan \
             --ci-pipeline-id "${{ github.repository }}" \
             --ci-build-id "${{ github.run_id }}" \
-            --name "dvwa-custom-lab" \
-            mi-dvwa-lab:${{ github.sha }}
+            --name "Calo-CortexCLI-prueba" \
+            Calo-CortexCLI-prueba:latest
+
+      - name: 3. Despliegue Automático en Docker Desktop
+        run: |
+          echo "Buscando y removiendo versiones antiguas del contenedor si existen..."
+          docker rm -f Calo-CortexCLI-prueba || true
+          
+          echo "Lanzando el nuevo contenedor en Docker Desktop..."
+          # Mapeamos un puerto (ejemplo: 8080) para que puedas acceder si el contenedor expone servicio web
+          docker run -d -p 8080:80 --name Calo-CortexCLI-prueba Calo-CortexCLI-prueba:latest
+          
+          echo "¡Despliegue finalizado! Revisa tu aplicación Docker Desktop."
