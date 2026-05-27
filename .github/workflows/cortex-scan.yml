@@ -1,4 +1,4 @@
-name: Cortex Security Pipeline - Full DevSecOps (Debian Testing)
+name: Cortex Security Pipeline - Dynamic DevSecOps
 
 on:
   push:
@@ -11,7 +11,7 @@ jobs:
   # ---------------------------------------------------------
   security-scan:
     name: 1. Escaneo de IaC y Código
-    runs-on: self-hosted # Usa tu agente local
+    runs-on: self-hosted # Ejecuta en el runner de tu Escritorio
     steps:
       - name: Descargar el código
         uses: actions/checkout@v4
@@ -46,7 +46,7 @@ jobs:
             --branch "${{ github.ref_name }}" \
             --source "CORTEX_CLI" \
             --upload-mode no-upload \
-            --create-repo-if-missing || echo "⚠️ Vulnerabilidades estáticas detectadas, pero continuamos con el laboratorio..."
+            --create-repo-if-missing
 
   # ---------------------------------------------------------
   # STAGE 2: CONSTRUCCIÓN, ESCANEO DINÁMICO Y DESPLIEGUE
@@ -54,7 +54,7 @@ jobs:
   build-and-image-scan:
     name: 2. Construcción, Escaneo y Despliegue
     needs: security-scan
-    runs-on: self-hosted # Usa tu agente local
+    runs-on: self-hosted # Ejecuta en el runner de tu Escritorio
     steps:
       - name: Descargar el código
         uses: actions/checkout@v4
@@ -78,9 +78,9 @@ jobs:
 
       - name: Construir imagen Docker
         run: |
-          # El nombre debe ir obligatoriamente en minúsculas para Docker
+          # Nombre completamente en minúsculas obligatorio para Docker build
           docker build -t calo-cortexcli-prueba:latest .
-          echo "¡Imagen calo-cortexcli-prueba construida localmente!"
+          echo "¡Imagen calo-cortexcli-prueba construida localmente con éxito!"
 
       - name: Cortex Scan - Escaneo de la Imagen (CVEs)
         run: |
@@ -102,7 +102,7 @@ jobs:
           docker rm -f Calo-CortexCLI-prueba || true
           
           echo "Lanzando el nuevo contenedor en Docker Desktop..."
-          # El flag --name sí acepta mayúsculas para el contenedor final en Docker Desktop
+          # El nombre del contenedor vivo final sí puede llevar mayúsculas
           docker run -d -p 8080:80 --name Calo-CortexCLI-prueba calo-cortexcli-prueba:latest
           
           echo "¡Despliegue finalizado! Revisa tu aplicación Docker Desktop."
