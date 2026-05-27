@@ -1,4 +1,4 @@
-FROM debian:testing-backports
+FROM vulnerables/web-dvwa:latest
 
 # MALA PRÁCTICA 1: Variables de entorno con secretos quemados en el código
 ENV AWS_SECRET_KEY="AKIAIOSFODNN7EXAMPLE"
