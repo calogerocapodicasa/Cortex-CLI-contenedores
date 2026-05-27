@@ -1,22 +1,16 @@
-FROM debian:testing-backports
+# 1. Usamos la imagen ultra vulnerable oficial de DVWA como base
+FROM vulnerables/web-dvwa:latest
 
-# MALA PRÁCTICA 1: Variables de entorno con secretos quemados en el código
-ENV AWS_SECRET_KEY="AKIAIOSFODNN7EXAMPLE"
-ENV DB_PASSWORD="SuperSecretPassword123!"
+# 2. Inyectamos malas prácticas de IaC a propósito (Stage 1 - code scan)
+# MALA PRÁCTICA 1: Dejar credenciales administrativas expuestas en texto plano
+ENV ADMIN_PASSWORD="PasswordInseguro123!"
+ENV AWS_SECRET_ACCESS_KEY="AKIAIOSFODNN7EXAMPLE"
 
-RUN apt-get update && apt-get install -y \
-    python3 \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-# MALA PRÁCTICA 2: Usar ADD en lugar de COPY para archivos locales
-ADD . /app
-
-# MALA PRÁCTICA 3: Exponer el puerto SSH (22), lo cual es crítico en contenedores
-EXPOSE 22
-
-# MALA PRÁCTICA 4: Ejecutar explícitamente como usuario root
+# MALA PRÁCTICA 2: Forzar de forma insegura el uso del superusuario root
 USER root
 
-CMD ["python3", "-c", "print('¡Contenedor inseguro en ejecución!')"]
+# MALA PRÁCTICA 3: Exponer un puerto de administración crítico (SSH) abierto al mundo
+EXPOSE 22
+
+# Mantener el script de arranque original de DVWA
+CMD ["/run.sh"]
